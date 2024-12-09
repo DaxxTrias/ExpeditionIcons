@@ -1,21 +1,22 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
-using ExileCore;
-using ExileCore.PoEMemory.Components;
-using ExileCore.PoEMemory.Elements;
-using ExileCore.PoEMemory.MemoryObjects;
-using ExileCore.Shared.Enums;
-using ExileCore.Shared.Helpers;
-using ExileCore.Shared.Nodes;
+using ExileCore2;
+using ExileCore2.PoEMemory.Components;
+using ExileCore2.PoEMemory.Elements;
+using ExileCore2.PoEMemory.MemoryObjects;
+using ExileCore2.Shared.Enums;
+using ExileCore2.Shared.Helpers;
+using ExileCore2.Shared.Nodes;
 using ExpeditionIcons.PathPlannerData;
-using GameOffsets.Native;
+using GameOffsets2.Native;
 using ImGuiNET;
-using SharpDX;
+using RectangleF = ExileCore2.Shared.RectangleF;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 using Vector4 = System.Numerics.Vector4;
@@ -67,7 +68,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     private (Vector2 Pos, float Rotation)? DetonatorPos => _detonatorPos ??= RealDetonatorPos;
 
     private (Vector2, float)? RealDetonatorPos => DetonatorEntity is { } e
-        ? (e.GridPosNum, e.GetComponent<Positioned>().Rotation)
+        ? (e.GridPos, e.GetComponent<Positioned>().Rotation)
         : null;
 
     private Entity DetonatorEntity =>
@@ -80,13 +81,13 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     private Vector2i? PlacementIndicatorPos =>
         ExpeditionInfo.IsExplosivePlacementActive
             ? GameController.EntityListWrapper.ValidEntitiesByType[EntityType.MiscellaneousObjects]
-                  .FirstOrDefault(x => x.Path == "Metadata/MiscellaneousObjects/Expedition/ExpeditionPlacementIndicator")?.GridPosNum.RoundToVector2I() ??
+                  .FirstOrDefault(x => x.Path == "Metadata/MiscellaneousObjects/Expedition/ExpeditionPlacementIndicator")?.GridPos.RoundToVector2I() ??
               ExpeditionInfo.PlacementIndicatorGridPosition
             : null;
 
     private ExpeditionDetonatorInfo ExpeditionInfo => GameController.IngameState.IngameUi.ExpeditionDetonatorElement.Info;
 
-    private RectangleF LocalWindowRect => GameController.Window.GetWindowRectangleTimeCache with { Location = SharpDX.Vector2.Zero };
+    private RectangleF LocalWindowRect => GameController.Window.GetWindowRectangleTimeCache with { Location = Vector2.Zero };
 
     public override bool Initialise()
     {
@@ -179,7 +180,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     {
         const int segments = 90;
         const int segmentSpan = 360 / segments;
-        var playerPos = GameController.Player?.GetComponent<Positioned>()?.WorldPosNum;
+        var playerPos = GameController.Player?.GetComponent<Positioned>()?.WorldPos;
         if (playerPos == null)
         {
             return;
@@ -219,7 +220,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         }
     }
 
-    public override Job Tick()
+    public override void Tick()
     {
         Settings._iconsImageId = Graphics.GetTextureId(TextureName);
         Settings.PlannerSettings.SearchState = _plannerRunner switch
@@ -230,10 +231,10 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         };
 
         var detonatorPos = DetonatorPos;
-        var playerGridPos = GameController.Player?.GetComponent<Positioned>()?.WorldPosNum.WorldToGrid();
+        var playerGridPos = GameController.Player?.GetComponent<Positioned>()?.WorldPos.WorldToGrid();
         if (playerGridPos == null)
         {
-            return null;
+            return;
         }
 
         _playerGridPos = playerGridPos.Value;
@@ -243,7 +244,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             if (_zoneCleared)
             {
                 ClearSearch();
-                return null;
+                return;
             }
         }
 
@@ -252,7 +253,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         var largeMap = map.LargeMap.AsObject<SubMap>();
         _largeMapOpen = largeMap.IsVisible;
         _mapScale = GameController.IngameState.Camera.Height / 677f * largeMap.Zoom;
-        _mapCenter = largeMap.GetClientRect().TopLeft.ToVector2Num() + largeMap.ShiftNum + largeMap.DefaultShiftNum;
+        _mapCenter = largeMap.GetClientRect().TopLeft + largeMap.Shift + largeMap.DefaultShift;
         _playerZ = GameController.Player.GetComponent<Render>().Z;
 
         _explosiveRadius = Settings.ExplosivesSettings.CalculateRadiusAutomatically
@@ -277,7 +278,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             }
         }
 
-        return null;
+        return;
     }
 
     private (Vector2 Min, Vector2 Max)? GetExclusionRect()
@@ -438,7 +439,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
         var explosives3D = GameController.EntityListWrapper.ValidEntitiesByType[EntityType.IngameIcon]
             .Where(x => x.Path == ExplosivePath)
-            .Select(x => x.PosNum)
+            .Select(x => x.Pos)
             .ToList();
         _explosives2DPositions = explosives3D.Select(x => new Vector2(x.X, x.Y)).ToList();
         if (Settings.ExplosivesSettings.ShowExplosives)
@@ -618,7 +619,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
                 PathPlanner.DetailedLootScore scoreDiff = null;
                 if (_editedPath != null && _editedIndex is { } editedIndex)
                 {
-                    var pos = GameController.IngameState.ServerData.WorldMousePositionNum.WorldToGrid();
+                    var pos = GameController.IngameState.ServerData.WorldMousePosition.WorldToGrid();
                     var pp = new PathPlanner(Settings.PlannerSettings);
                     pp.Init(score.Environment);
                     var path = _editedPath.ToList();
@@ -947,10 +948,10 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             entity.Path,
             new Lazy<string>(() => entity.GetComponent<Animated>()?.BaseAnimatedObjectEntity?.Metadata, LazyThreadSafetyMode.None),
             entity.GetComponent<ObjectMagicProperties>()?.Mods,
-            entity.PosNum,
-            entity.PosNum.WorldToGrid(),
+            entity.Pos,
+            entity.Pos.WorldToGrid(),
             entity.GetComponent<Render>()?.Z,
-            entity.GetComponent<Render>()?.BoundsNum is { } b ? Math.Min(b.X, b.Y) : null,
+            entity.GetComponent<Render>()?.Bounds is { } b ? Math.Min(b.X, b.Y) : null,
             entity.GetComponent<MinimapIcon>()?.IsHide);
     }
 }

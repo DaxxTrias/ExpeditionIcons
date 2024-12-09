@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
-using ExileCore.Shared.Attributes;
-using ExileCore.Shared.Enums;
-using ExileCore.Shared.Helpers;
-using ExileCore.Shared.Interfaces;
-using ExileCore.Shared.Nodes;
+using ExileCore2.Shared.Attributes;
+using ExileCore2.Shared.Enums;
+using ExileCore2.Shared.Helpers;
+using ExileCore2.Shared.Interfaces;
+using ExileCore2.Shared.Nodes;
 using ImGuiNET;
 using Newtonsoft.Json;
-using SharpDX;
 using Vector4 = System.Numerics.Vector4;
 
 namespace ExpeditionIcons;
@@ -202,7 +202,7 @@ public class ExpeditionIconsSettings : ISettings
             }
 
             var btnClicked = ImGui.ImageButton($"btn{i}", _iconsImageId, System.Numerics.Vector2.One * IconPickerSize,
-                rect.TopLeft.ToVector2Num(), rect.BottomRight.ToVector2Num(), Vector4.Zero, tintColor);
+                rect.TopLeft, rect.BottomRight, Vector4.Zero, tintColor);
             ImGui.PopStyleColor();
             if (btnClicked)
             {
@@ -233,8 +233,8 @@ public class ExpeditionIconsSettings : ISettings
         ImGui.SameLine();
         var effectiveIcon = iconSettings.Icon ?? defaultIcon;
         var uv = SpriteHelper.GetUV(effectiveIcon);
-        var uv0 = uv.TopLeft.ToVector2Num();
-        var uv1 = uv.BottomRight.ToVector2Num();
+        var uv0 = uv.TopLeft;
+        var uv1 = uv.BottomRight;
         ImGui.PushID(iconKey.ToString());
         var tintVector = (iconSettings.Tint ?? Color.White).ToImguiVec4();
         var buttonClicked = ImGui.ImageButton("iconbtn", _iconsImageId, System.Numerics.Vector2.One * 15, uv0, uv1, Vector4.Zero, tintVector);
@@ -243,7 +243,7 @@ public class ExpeditionIconsSettings : ISettings
                 ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.NoInputs |
                 ImGuiColorEditFlags.AlphaPreviewHalf))
         {
-            var tint = tintVector.ToSharpColor();
+            var tint = tintVector.ToColor();
             if (tint != Color.White)
             {
                 iconSettings.Tint = tint;

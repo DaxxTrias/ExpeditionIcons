@@ -6,7 +6,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using ExileCore;
+using ExileCore2;
 using ExpeditionIcons.PathPlannerData;
 
 namespace ExpeditionIcons;

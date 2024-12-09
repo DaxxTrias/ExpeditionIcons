@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
-using ExileCore.Shared.Helpers;
-using GameOffsets.Native;
+using ExileCore2.Shared.Helpers;
+using GameOffsets2.Native;
 
 namespace ExpeditionIcons;
 

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using ExileCore.Shared.Helpers;
+using ExileCore2.Shared.Helpers;
 using ExpeditionIcons.PathPlannerData;
 
 namespace ExpeditionIcons;

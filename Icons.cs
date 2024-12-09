@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using ExileCore.Shared.Enums;
+using ExileCore2.Shared.Enums;
 using ExpeditionIcons.PathPlannerData;
 
 namespace ExpeditionIcons;

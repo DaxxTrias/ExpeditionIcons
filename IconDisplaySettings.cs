@@ -1,7 +1,7 @@
-﻿using ExileCore.Shared.Enums;
+﻿using System.Drawing;
+using ExileCore2.Shared.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using SharpDX;
 
 namespace ExpeditionIcons;
 
