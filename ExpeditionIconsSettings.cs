@@ -14,166 +14,16 @@ using Vector4 = System.Numerics.Vector4;
 
 namespace ExpeditionIcons;
 
-public class ExpeditionIconsSettings : ISettings
+public class IconPickerDrawer
 {
-    public const MapIconsIndex DefaultBadModsIcon = MapIconsIndex.RedFlag;
-    public const MapIconsIndex DefaultEliteMonsterIcon = MapIconsIndex.HeistSpottedMiniBoss;
-    public const MapIconsIndex DefaultChestIcon = MapIconsIndex.MissionTarget;
+    public static readonly IconPickerDrawer Instance = new();
 
     internal IntPtr _iconsImageId;
     private IconPickerIndex? _shownIconPicker;
     private string _iconFilter = "";
-    public int IconPickerSize = 20;
-    public int IconsPerRow = 15;
-    public Dictionary<IconPickerIndex, IconDisplaySettings> IconMapping = new();
+    internal ExpeditionIconsSettings Settings;
 
-    public ExpeditionIconsSettings()
-    {
-        GoodModsIconPicker = new CustomNode
-        {
-            DrawDelegate = () =>
-            {
-                foreach (var expeditionMarkerIconDescription in Icons.ExpeditionRelicIcons)
-                {
-                    ImGui.PushID($"IconLine{expeditionMarkerIconDescription.IconPickerIndex}");
-                    PickIcon(expeditionMarkerIconDescription.IconPickerIndex, expeditionMarkerIconDescription.DefaultIcon);
-                    ImGui.PopID();
-                }
-            }
-        };
-        ChestSettings = new CustomNode
-        {
-            DrawDelegate = () =>
-            {
-                foreach (var expeditionMarkerIconDescription in Icons.LogbookChestIcons)
-                {
-                    ImGui.PushID($"IconLine{expeditionMarkerIconDescription.IconPickerIndex}");
-                    PickIcon(expeditionMarkerIconDescription.IconPickerIndex, expeditionMarkerIconDescription.DefaultIcon);
-                    ImGui.PopID();
-                }
-            }
-        };
-        DrawEliteMonstersInWorld = new CustomNode
-        {
-            DrawDelegate = () => { PickIcon(IconPickerIndex.EliteMonstersIndicator, DefaultEliteMonsterIcon); }
-        };
-        DrawBadMods = new CustomNode
-        {
-            DrawDelegate = () => { PickIcon(IconPickerIndex.BadModsIndicator, DefaultBadModsIcon); }
-        };
-    }
-
-    public ToggleNode Enable { get; set; } = new ToggleNode(false);
-
-    [JsonIgnore]
-    public CustomNode DrawEliteMonstersInWorld { get; set; }
-
-    public RangeNode<int> WorldIconSize { get; set; } = new RangeNode<int>(50, 25, 200);
-    public RangeNode<int> MapIconSize { get; set; } = new RangeNode<int>(30, 15, 200);
-
-    [Menu("Good mods", 100, CollapsedByDefault = true)]
-    [JsonIgnore]
-    public EmptyNode SettingsEmptyGood { get; set; }
-
-    [Menu(null, parentIndex = 100)]
-    public ToggleNode DrawGoodModsOnMap { get; set; } = new ToggleNode(true);
-
-    [Menu(null, parentIndex = 100)]
-    public ToggleNode DrawGoodModsInWorld { get; set; } = new ToggleNode(true);
-
-    [JsonIgnore]
-    [Menu(null, parentIndex = 100)]
-    public CustomNode GoodModsIconPicker { get; }
-
-    [Menu("Bad mods", 101, CollapsedByDefault = true)]
-    [JsonIgnore]
-    public EmptyNode SettingsEmptyBad { get; set; }
-
-    [Menu(null, parentIndex = 101)]
-    [JsonIgnore]
-    public CustomNode DrawBadMods { get; }
-
-    [Menu("Warn for physical immune", parentIndex = 101)]
-    public ToggleNode WarnPhysImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for fire immune", parentIndex = 101)]
-    public ToggleNode WarnFireImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for ailment immune", parentIndex = 101)]
-    public ToggleNode WarnIgniteImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for cold immune", parentIndex = 101)]
-    public ToggleNode WarnColdImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for lightning immune", parentIndex = 101)]
-    public ToggleNode WarnLightningImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for chaos immune", parentIndex = 101)]
-    public ToggleNode WarnChaosImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for crit immune", parentIndex = 101)]
-    public ToggleNode WarnCritImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for curse immune", parentIndex = 101)]
-    public ToggleNode WarnCurseImmune { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for armor pen (100% overwhelm)", parentIndex = 101)]
-    public ToggleNode WarnArmorPen { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for no flask", parentIndex = 101)]
-    public ToggleNode WarnNoFlask { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for no evade", parentIndex = 101)]
-    public ToggleNode WarnNoEvade { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for no leech", parentIndex = 101)]
-    public ToggleNode WarnNoLeech { get; set; } = new ToggleNode(true);
-
-    [Menu("Warn for petrify", parentIndex = 101)]
-    public ToggleNode WarnPetrify { get; set; } = new ToggleNode(true);
-
-    [Menu("Warn for 20% cull", parentIndex = 101)]
-    public ToggleNode WarnCull { get; set; } = new ToggleNode(true);
-
-    [Menu("Warn for monster regen", parentIndex = 101)]
-    public ToggleNode WarnMonsterRegen { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for monster block", parentIndex = 101)]
-    public ToggleNode WarnMonsterBlock { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for monster resistances", parentIndex = 101)]
-    public ToggleNode WarnMonsterResist { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for corrupted items", parentIndex = 101)]
-    public ToggleNode WarnCorrupted { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for \"always crit\"", parentIndex = 101)]
-    public ToggleNode WarnAlwaysCrit { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for reduced damage taken", parentIndex = 101)]
-    public ToggleNode WarnReducedDamageTaken { get; set; } = new ToggleNode(false);
-
-    [Menu("Warn for bleed", parentIndex = 101)]
-    public ToggleNode WarnBleed { get; set; } = new ToggleNode(false);
-    
-    [Menu("Warn for poison", parentIndex = 101)]
-    public ToggleNode WarnPoison { get; set; } = new ToggleNode(false);
-    [Menu("Warn for phys as chaos", parentIndex = 101)]
-    public ToggleNode WarnPhysicalAsExtraChaos { get; set; } = new ToggleNode(false);
-
-    [Menu("Chest settings", index = 103, CollapsedByDefault = true)]
-    [JsonIgnore]
-    public EmptyNode ChestSettingsHeader { get; set; }
-
-    [Menu(null, parentIndex = 103)]
-    [JsonIgnore]
-    public CustomNode ChestSettings { get; set; }
-
-    public ExpeditionExplosiveSettings ExplosivesSettings { get; set; } = new ExpeditionExplosiveSettings();
-    public PlannerSettings PlannerSettings { get; set; } = new PlannerSettings();
-
-
-    private bool PickIcon(string iconName, ref MapIconsIndex icon, Vector4 tintColor)
+    public bool PickIcon(string iconName, ref MapIconsIndex icon, Vector4 tintColor)
     {
         var isOpen = true;
         ImGui.Begin($"Pick icon for {iconName}", ref isOpen, ImGuiWindowFlags.AlwaysAutoResize);
@@ -183,8 +33,8 @@ public class ExpeditionIconsSettings : ISettings
         }
 
         ImGui.InputTextWithHint("##Filter", "Filter", ref _iconFilter, 100);
-        ImGui.SliderInt("Icon size (only in this menu)", ref IconPickerSize, 15, 60);
-        ImGui.SliderInt("Icons per row", ref IconsPerRow, 5, 60);
+        ImGui.SliderInt("Icon size (only in this menu)", ref Settings.IconPickerSize, 15, 60);
+        ImGui.SliderInt("Icons per row", ref Settings.IconsPerRow, 5, 60);
         var icons = Enum.GetValues<MapIconsIndex>()
             .Where(x => string.IsNullOrEmpty(_iconFilter) || x.ToString().Contains(_iconFilter, StringComparison.InvariantCultureIgnoreCase))
             .ToArray();
@@ -201,7 +51,7 @@ public class ExpeditionIconsSettings : ISettings
                 ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetColorU32(ImGuiCol.WindowBg));
             }
 
-            var btnClicked = ImGui.ImageButton($"btn{i}", _iconsImageId, System.Numerics.Vector2.One * IconPickerSize,
+            var btnClicked = ImGui.ImageButton($"btn{i}", _iconsImageId, System.Numerics.Vector2.One * Settings.IconPickerSize,
                 rect.TopLeft, rect.BottomRight, Vector4.Zero, tintColor);
             ImGui.PopStyleColor();
             if (btnClicked)
@@ -210,7 +60,7 @@ public class ExpeditionIconsSettings : ISettings
                 return true;
             }
 
-            if ((i + 1) % IconsPerRow != 0)
+            if ((i + 1) % Settings.IconsPerRow != 0)
             {
                 ImGui.SameLine();
             }
@@ -220,9 +70,9 @@ public class ExpeditionIconsSettings : ISettings
         return false;
     }
 
-    private void PickIcon(IconPickerIndex iconKey, MapIconsIndex defaultIcon)
+    public void PickIcon(IconPickerIndex iconKey, MapIconsIndex defaultIcon)
     {
-        var iconSettings = IconMapping.GetValueOrDefault(iconKey, new IconDisplaySettings());
+        var iconSettings = Settings.IconMapping.GetValueOrDefault(iconKey, new IconDisplaySettings());
         ImGui.Checkbox($"Show {iconKey} on map", ref iconSettings.ShowOnMap);
         ImGui.SameLine();
         ImGui.Text("(");
@@ -266,8 +116,87 @@ public class ExpeditionIconsSettings : ISettings
         }
 
         ImGui.PopID();
-        IconMapping[iconKey] = iconSettings;
+        Settings.IconMapping[iconKey] = iconSettings;
     }
+}
+
+public class ExpeditionIconsSettings : ISettings
+{
+    public const MapIconsIndex DefaultBadModsIcon = MapIconsIndex.RedFlag;
+    public const MapIconsIndex DefaultEliteMonsterIcon = MapIconsIndex.HeistSpottedMiniBoss;
+    public const MapIconsIndex DefaultChestIcon = MapIconsIndex.MissionTarget;
+
+    public int IconPickerSize = 20;
+    public int IconsPerRow = 15;
+    public Dictionary<IconPickerIndex, IconDisplaySettings> IconMapping = new();
+
+    public ExpeditionIconsSettings()
+    {
+        IconPickerDrawer.Instance.Settings = this;
+        GoodModsIconPicker = new CustomNode
+        {
+            DrawDelegate = () =>
+            {
+                foreach (var expeditionMarkerIconDescription in Icons.ExpeditionRelicIcons)
+                {
+                    ImGui.PushID($"IconLine{expeditionMarkerIconDescription.IconPickerIndex}");
+                    IconPickerDrawer.Instance.PickIcon(expeditionMarkerIconDescription.IconPickerIndex, expeditionMarkerIconDescription.DefaultIcon);
+                    ImGui.PopID();
+                }
+            }
+        };
+        ChestSettings = new CustomNode
+        {
+            DrawDelegate = () =>
+            {
+                foreach (var expeditionMarkerIconDescription in Icons.LogbookChestIcons)
+                {
+                    ImGui.PushID($"IconLine{expeditionMarkerIconDescription.IconPickerIndex}");
+                    IconPickerDrawer.Instance.PickIcon(expeditionMarkerIconDescription.IconPickerIndex, expeditionMarkerIconDescription.DefaultIcon);
+                    ImGui.PopID();
+                }
+            }
+        };
+        DrawEliteMonstersInWorld = new CustomNode
+        {
+            DrawDelegate = () => { IconPickerDrawer.Instance.PickIcon(IconPickerIndex.EliteMonstersIndicator, DefaultEliteMonsterIcon); }
+        };
+    }
+
+    public ToggleNode Enable { get; set; } = new ToggleNode(false);
+
+    [JsonIgnore]
+    public CustomNode DrawEliteMonstersInWorld { get; set; }
+
+    public RangeNode<int> WorldIconSize { get; set; } = new RangeNode<int>(50, 25, 200);
+    public RangeNode<int> MapIconSize { get; set; } = new RangeNode<int>(30, 15, 200);
+
+    [Menu("Good mods", 100, CollapsedByDefault = true)]
+    [JsonIgnore]
+    public EmptyNode SettingsEmptyGood { get; set; }
+
+    [Menu(null, parentIndex = 100)]
+    public ToggleNode DrawGoodModsOnMap { get; set; } = new ToggleNode(true);
+
+    [Menu(null, parentIndex = 100)]
+    public ToggleNode DrawGoodModsInWorld { get; set; } = new ToggleNode(true);
+
+    [JsonIgnore]
+    [Menu(null, parentIndex = 100)]
+    public CustomNode GoodModsIconPicker { get; }
+
+    public ModWarningSettings ModWarningSettings { get; set; } = new ModWarningSettings();
+
+    [Menu("Chest settings", index = 103, CollapsedByDefault = true)]
+    [JsonIgnore]
+    public EmptyNode ChestSettingsHeader { get; set; }
+
+    [Menu(null, parentIndex = 103)]
+    [JsonIgnore]
+    public CustomNode ChestSettings { get; set; }
+
+    public ExpeditionExplosiveSettings ExplosivesSettings { get; set; } = new ExpeditionExplosiveSettings();
+    public PlannerSettings PlannerSettings { get; set; } = new PlannerSettings();
 }
 
 [Submenu]
@@ -281,21 +210,11 @@ public class PlannerSettings
     public Dictionary<IconPickerIndex, RelicSettings> RelicSettingsMap = new()
     {
         [IconPickerIndex.Logbooks] = new RelicSettings { Multiplier = 1.5f, },
-        [IconPickerIndex.LogbooksExcavatedChest] = new RelicSettings { Multiplier = 1.5f, },
-        [IconPickerIndex.Fractured] = new RelicSettings { Multiplier = 1.3f, },
-        [IconPickerIndex.FracturedExcavatedChest] = new RelicSettings { Multiplier = 1.3f, },
         [IconPickerIndex.PackSize] = new RelicSettings { Multiplier = 1.25f, },
-        [IconPickerIndex.Scarabs] = new RelicSettings { Increase = 0.25f, },
-        [IconPickerIndex.ScarabsExcavatedChest] = new RelicSettings { Increase = 0.25f, },
         [IconPickerIndex.Artifacts] = new RelicSettings { Increase = 0.4f, },
         [IconPickerIndex.ArtifactsExcavatedChest] = new RelicSettings { Increase = 0.4f, },
         [IconPickerIndex.Quantity] = new RelicSettings { Increase = 0.4f, },
         [IconPickerIndex.QuantityExcavatedChest] = new RelicSettings { Increase = 0.4f, },
-        [IconPickerIndex.Currency] = new RelicSettings { Increase = 0.4f, },
-        [IconPickerIndex.CurrencyExcavatedChest] = new RelicSettings { Increase = 0.4f, },
-        [IconPickerIndex.StackedDecks] = new RelicSettings { Increase = 0.4f, },
-        [IconPickerIndex.StackedDecksExcavatedChest] = new RelicSettings { Increase = 0.4f, },
-        [IconPickerIndex.Rerolls] = new RelicSettings { Increase = 0.25f, },
     };
 
     public RelicSettings DefaultRelicSettings = RelicSettings.Default;
@@ -352,6 +271,7 @@ public class PlannerSettings
                         {
                             RelicSettingsMap[expeditionMarkerIconDescription.IconPickerIndex] = relicSettings;
                         }
+
                         ImGui.PopID();
                     }
 
@@ -394,6 +314,7 @@ public class PlannerSettings
     [JsonIgnore]
     [ConditionalDisplay(nameof(HasSearchResult))]
     public ButtonNode ClearSearch { get; set; } = new ButtonNode();
+
     public ToggleNode PlaySoundOnFinish { get; set; } = new ToggleNode(false);
 
     [Menu("Color for suggested explosive radius")]
@@ -422,7 +343,7 @@ public class PlannerSettings
 
     [Menu("Chest weight", 888, CollapsedByDefault = true)]
     [JsonIgnore]
-    public EmptyNode ChestWeightStub { get; set; } 
+    public EmptyNode ChestWeightStub { get; set; }
 
     [JsonIgnore]
     [Menu(null, parentIndex = 888)]
@@ -490,6 +411,104 @@ public class ExpeditionExplosiveSettings
 
     [Menu("Rectangle Thickness for captured entities on map")]
     public RangeNode<int> CapturedEntityMapFrameThickness { get; set; } = new RangeNode<int>(2, 1, 20);
+}
+
+[Submenu(CollapsedByDefault = true)]
+public class ModWarningSettings
+{
+    public ModWarningSettings()
+    {
+        DrawBadMods = new CustomNode
+        {
+            DrawDelegate = () => { IconPickerDrawer.Instance.PickIcon(IconPickerIndex.BadModsIndicator, ExpeditionIconsSettings.DefaultBadModsIcon); }
+        };
+    }
+
+    [JsonIgnore]
+    public CustomNode DrawBadMods { get; }
+
+    [Menu("Warn for physical immune")]
+    public ToggleNode WarnPhysImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for fire immune")]
+    public ToggleNode WarnFireImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for ailment immune")]
+    public ToggleNode WarnAilmentImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for cold immune")]
+    public ToggleNode WarnColdImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for lightning immune")]
+    public ToggleNode WarnLightningImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for chaos immune")]
+    public ToggleNode WarnChaosImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for crit immune")]
+    public ToggleNode WarnCritImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for curse immune")]
+    public ToggleNode WarnCurseImmune { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for armor pen (100% overwhelm)")]
+    public ToggleNode WarnArmorPen { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for no flask")]
+    public ToggleNode WarnNoFlask { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for no evade")]
+    public ToggleNode WarnNoEvade { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for no leech")]
+    public ToggleNode WarnNoLeech { get; set; } = new ToggleNode(true);
+
+    [Menu("Warn for petrify")]
+    public ToggleNode WarnPetrify { get; set; } = new ToggleNode(true);
+
+    [Menu("Warn for 20% cull")]
+    public ToggleNode WarnCull { get; set; } = new ToggleNode(true);
+
+    [Menu("Warn for monster regen")]
+    public ToggleNode WarnMonsterRegen { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for monster block")]
+    public ToggleNode WarnMonsterBlock { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for monster resistances")]
+    public ToggleNode WarnMonsterResist { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for corrupted items")]
+    public ToggleNode WarnCorrupted { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for \"always crit\"")]
+    public ToggleNode WarnAlwaysCrit { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for reduced damage taken")]
+    public ToggleNode WarnReducedDamageTaken { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for bleed")]
+    public ToggleNode WarnBleed { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for poison")]
+    public ToggleNode WarnPoison { get; set; } = new ToggleNode(false);
+
+    [Menu("Warn for phys as chaos")]
+    public ToggleNode WarnPhysicalAsExtraChaos { get; set; } = new ToggleNode(false);
+
+    public ToggleNode WarnAvoidDamage { get; set; } = new(false);
+    public ToggleNode WarnHexer { get; set; } = new(false);
+    public ToggleNode WarnBreaksArmor { get; set; } = new(false);
+    public ToggleNode WarnRegen { get; set; } = new(false);
+    public ToggleNode WarnEnrage { get; set; } = new(false);
+    public ToggleNode WarnCICrit { get; set; } = new(false);
+    public ToggleNode WarnFirePen { get; set; } = new(false);
+    public ToggleNode WarnColdPen { get; set; } = new(false);
+    public ToggleNode WarnLightningPen { get; set; } = new(false);
+    public ToggleNode WarnChaosPen { get; set; } = new(false);
+    public ToggleNode WarnChaosExtra { get; set; } = new(false);
+    public ToggleNode WarnMoreAilments { get; set; } = new(false);
+    public ToggleNode WarnSpeed { get; set; } = new(false);
 }
 
 public enum SearchState

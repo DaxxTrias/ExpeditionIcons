@@ -92,7 +92,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     public override bool Initialise()
     {
         Graphics.InitImage(TextureName);
-        Settings._iconsImageId = Graphics.GetTextureId(TextureName);
+        IconPickerDrawer.Instance._iconsImageId = Graphics.GetTextureId(TextureName);
         Settings.PlannerSettings.StartSearch.OnPressed += StartSearch;
         Settings.PlannerSettings.StopSearch.OnPressed += StopSearch;
         Settings.PlannerSettings.ClearSearch.OnPressed += ClearSearch;
@@ -222,7 +222,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     public override void Tick()
     {
-        Settings._iconsImageId = Graphics.GetTextureId(TextureName);
+        IconPickerDrawer.Instance._iconsImageId = Graphics.GetTextureId(TextureName);
         Settings.PlannerSettings.SearchState = _plannerRunner switch
         {
             { IsRunning: true } => SearchState.Searching,
@@ -346,7 +346,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
                     }
 
                     if (e.MinimapIconHide != false) continue;
-                    if (!mods.Any(x => x.Contains("ExpeditionRelicModifier"))) continue;
+                    if (!mods.Any(x => x.Contains("ExpeditionRelic"))) continue;
 
                     if (ContainsWarnMods(mods))
                     {
@@ -501,7 +501,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
                     var mods = e.Mods;
                     if (e.Mods == null) continue;
                     if (e.MinimapIconHide != false) continue;
-                    if (!mods.Any(x => x.Contains("ExpeditionRelicModifier"))) continue;
+                    if (!mods.Any(x => x.Contains("ExpeditionRelic"))) continue;
 
                     if (ContainsWarnMods(mods))
                     {
@@ -772,30 +772,44 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     private bool ContainsWarnMods(List<string> mods)
     {
-        return Settings.WarnPhysImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierImmunePhysicalDamage")) ||
-               Settings.WarnFireImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierImmuneFireDamage")) ||
-               Settings.WarnColdImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierImmuneColdDamage")) ||
-               Settings.WarnLightningImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierImmuneLightningDamage")) ||
-               Settings.WarnChaosImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierImmuneChaosDamage")) ||
-               Settings.WarnCritImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierCannotBeCrit")) ||
-               Settings.WarnIgniteImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierImmuneStatusAilments")) ||
-               Settings.WarnArmorPen && mods.Any(x => x.Contains("ExpeditionRelicModifierIgnoreArmour")) ||
-               Settings.WarnNoEvade && mods.Any(x => x.Contains("ExpeditionRelicModifierHitsCannotBeEvaded")) ||
-               Settings.WarnNoLeech && mods.Any(x => x.Contains("ExpeditionRelicModifierCannotBeLeechedFrom")) ||
-               Settings.WarnNoFlask && mods.Any(x => x.Contains("ExpeditionRelicModifierGrantNoFlaskCharges")) ||
-               Settings.WarnPetrify && mods.Any(x => x.Contains("ExpeditionRelicModifierElitesPetrifyOnHit")) ||
-               Settings.WarnCurseImmune && mods.Any(x => x.Contains("ExpeditionRelicModifierImmuneToCurses")) ||
-               Settings.WarnCull && mods.Any(x => x.Contains("ExpeditionRelicModifierCullingStrikeTwentyPercent")) ||
-               Settings.WarnMonsterBlock && mods.Any(x => x.Contains("ExpeditionRelicModifierAttackBlockSpellBlockMaxBlockChance")) ||
-               Settings.WarnMonsterResist && mods.Any(x => x.Contains("ExpeditionRelicModifierResistancesAndMaxResistances")) ||
-               Settings.WarnMonsterRegen && mods.Any(x => x.Contains("ExpeditionRelicModifierElitesRegenerateLifeEveryFourSeconds")) ||
-               Settings.WarnAlwaysCrit && mods.Any(x => x.Contains("ExpeditionRelicModifierAlwaysCrit")) ||
-               Settings.WarnReducedDamageTaken && mods.Any(x => x.Contains("ExpeditionRelicModifierReducedDamageTaken")) ||
-               Settings.WarnBleed && mods.Any(x => x.Contains("ExpeditionRelicModifierBleedOnHitBleedDuration")) ||
-               Settings.WarnCorrupted && mods.Any(x => x.Contains("ExpeditionRelicModifierExpeditionCorruptedItemsElite")) ||
-               Settings.WarnPoison && mods.Any(x => x.Contains("ExpeditionRelicModifierAllDamagePoisonsPoisonDuration")) ||
-               Settings.WarnPhysicalAsExtraChaos && mods.Any(x => x.Contains("ExpeditionRelicModifierDamageAddedAsChaos")) ||
-               false;
+        return
+            Settings.ModWarningSettings.WarnAvoidDamage && mods.Any(x => x.Contains("ExpeditionRelicDownsideAvoidDamage")) ||
+            Settings.ModWarningSettings.WarnHexer && mods.Any(x => x.Contains("ExpeditionRelicDownsideElitesRandomCurseOnHit")) ||
+            Settings.ModWarningSettings.WarnBreaksArmor && mods.Any(x => x.Contains("ExpeditionRelicDownsideArmourBreak")) ||
+            Settings.ModWarningSettings.WarnRegen && mods.Any(x => x.Contains("ExpeditionRelicDownsideRegenerateLifeEveryFourSeconds")) ||
+            Settings.ModWarningSettings.WarnEnrage && mods.Any(x => x.Contains("ExpeditionRelicDownsideDamageAttackCastMovementSpeedLowLife")) ||
+            Settings.ModWarningSettings.WarnCICrit && mods.Any(x => x.Contains("ExpeditionRelicDownsideCriticalAgainstFullLife")) ||
+            Settings.ModWarningSettings.WarnFirePen && mods.Any(x => x.Contains("ExpeditionRelicDownsideFirePenetration")) ||
+            Settings.ModWarningSettings.WarnColdPen && mods.Any(x => x.Contains("ExpeditionRelicDownsideColdPenetration")) ||
+            Settings.ModWarningSettings.WarnLightningPen && mods.Any(x => x.Contains("ExpeditionRelicDownsideLightningPenetration")) ||
+            Settings.ModWarningSettings.WarnChaosPen && mods.Any(x => x.Contains("ExpeditionRelicDownsideChaosPenetration")) ||
+            Settings.ModWarningSettings.WarnChaosExtra && mods.Any(x => x.Contains("ExpeditionRelicDownsideDamageAsChaos")) ||
+            Settings.ModWarningSettings.WarnMoreAilments && mods.Any(x => x.Contains("ExpeditionRelicDownsideElementalAilmentChance")) ||
+            Settings.ModWarningSettings.WarnSpeed && mods.Any(x => x.Contains("ExpeditionRelicDownsideIncreasedSpeed")) ||
+            Settings.ModWarningSettings.WarnPhysImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideImmunePhysicalDamage")) ||
+            Settings.ModWarningSettings.WarnFireImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideImmuneFireDamage")) ||
+            Settings.ModWarningSettings.WarnColdImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideImmuneColdDamage")) ||
+            Settings.ModWarningSettings.WarnLightningImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideImmuneLightningDamage")) ||
+            Settings.ModWarningSettings.WarnChaosImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideImmuneChaosDamage")) ||
+            Settings.ModWarningSettings.WarnCritImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideCannotBeCrit")) ||
+            Settings.ModWarningSettings.WarnAilmentImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideImmuneElementalAilments")) ||
+            Settings.ModWarningSettings.WarnArmorPen && mods.Any(x => x.Contains("ExpeditionRelicDownsideIgnoreArmour")) ||
+            Settings.ModWarningSettings.WarnNoEvade && mods.Any(x => x.Contains("ExpeditionRelicDownsideHitsCannotBeEvaded")) ||
+            Settings.ModWarningSettings.WarnNoLeech && mods.Any(x => x.Contains("ExpeditionRelicDownsideCannotBeLeechedFrom")) ||
+            Settings.ModWarningSettings.WarnNoFlask && mods.Any(x => x.Contains("ExpeditionRelicDownsideGrantNoFlaskCharges")) ||
+            Settings.ModWarningSettings.WarnPetrify && mods.Any(x => x.Contains("ExpeditionRelicDownsideElitesPetrifyOnHit")) ||
+            Settings.ModWarningSettings.WarnCurseImmune && mods.Any(x => x.Contains("ExpeditionRelicDownsideImmuneToCurses")) ||
+            Settings.ModWarningSettings.WarnCull && mods.Any(x => x.Contains("ExpeditionRelicDownsideCullingStrikeTwentyPercent")) ||
+            Settings.ModWarningSettings.WarnMonsterBlock && mods.Any(x => x.Contains("ExpeditionRelicDownsideAttackBlockSpellBlockMaxBlockChance")) ||
+            Settings.ModWarningSettings.WarnMonsterResist && mods.Any(x => x.Contains("ExpeditionRelicDownsideResistancesAndMaxResistances")) ||
+            Settings.ModWarningSettings.WarnMonsterRegen && mods.Any(x => x.Contains("ExpeditionRelicDownsideElitesRegenerateLifeEveryFourSeconds")) ||
+            Settings.ModWarningSettings.WarnAlwaysCrit && mods.Any(x => x.Contains("ExpeditionRelicDownsideAlwaysCrit")) ||
+            Settings.ModWarningSettings.WarnReducedDamageTaken && mods.Any(x => x.Contains("ExpeditionRelicDownsideReducedDamageTaken")) ||
+            Settings.ModWarningSettings.WarnBleed && mods.Any(x => x.Contains("ExpeditionRelicDownsideBleedOnHitBleedDuration")) ||
+            Settings.ModWarningSettings.WarnCorrupted && mods.Any(x => x.Contains("ExpeditionRelicDownsideExpeditionCorruptedItemsElite")) ||
+            Settings.ModWarningSettings.WarnPoison && mods.Any(x => x.Contains("ExpeditionRelicDownsideAllDamagePoisonsPoisonDuration")) ||
+            Settings.ModWarningSettings.WarnPhysicalAsExtraChaos && mods.Any(x => x.Contains("ExpeditionRelicDownsideDamageAddedAsChaos")) ||
+            false;
     }
 
     private void DrawIconOnMap(EntityCacheItem entity, MapIconsIndex icon, Color? color, Vector2 offset)
