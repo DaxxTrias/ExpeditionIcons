@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -96,7 +97,7 @@ public class PathPlannerRunner
             DebugWindow.LogMsg("ExpeditionIcons PathPlanner finished.");
             if (settings.PlaySoundOnFinish)
             {
-                soundController.PlaySound("attention");
+                soundController.PlaySound("expedition_attention");
             }
 
             _ = CurrentBestPath;

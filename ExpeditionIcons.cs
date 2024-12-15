@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -91,6 +92,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     public override bool Initialise()
     {
+        GameController.SoundController.PreloadSound("expedition_attention", Path.Join(DirectoryFullName, "attention.wav"));
         Graphics.InitImage(TextureName);
         IconPickerDrawer.Instance._iconsImageId = Graphics.GetTextureId(TextureName);
         Settings.PlannerSettings.StartSearch.OnPressed += StartSearch;
@@ -259,11 +261,11 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         _explosiveRadius = Settings.ExplosivesSettings.CalculateRadiusAutomatically
             //ReSharper disable once PossibleLossOfFraction
             //rounding here is extremely important to get right, this is taken from the game's code
-            ? ExplosiveBaseRadius * (100 + GameController.IngameState.Data.MapStats?.GetValueOrDefault(GameStat.MapExpeditionExplosionRadiusPct) ?? 0) / 100 * GridToWorldMultiplier
+            ? ExplosiveBaseRadius * (100 + (GameController.IngameState.Data.MapStats?.GetValueOrDefault(GameStat.MapExpeditionExplosionRadiusPct) ?? 0)) / 100 * GridToWorldMultiplier
             : Settings.ExplosivesSettings.ExplosiveRadius.Value;
         //ReSharper disable once PossibleLossOfFraction
         //rounding here is extremely important to get right, this is taken from the game's code
-        _explosiveRange = ExplosiveBaseRange * (100 + GameController.IngameState.Data.MapStats?.GetValueOrDefault(GameStat.MapExpeditionMaximumPlacementDistancePct) ?? 0) / 100 *
+        _explosiveRange = ExplosiveBaseRange * (100 + (GameController.IngameState.Data.MapStats?.GetValueOrDefault(GameStat.MapExpeditionMaximumPlacementDistancePct) ?? 0)) / 100 *
                           GridToWorldMultiplier;
 
         foreach (var entity in new[] { EntityType.IngameIcon, EntityType.Terrain }

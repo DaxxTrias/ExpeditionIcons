@@ -9,6 +9,14 @@
     <PathMap>$(MSBuildProjectDirectory)=$(MSBuildProjectName)</PathMap>
     <EmbedAllSources>true</EmbedAllSources>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove="attention.wav" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="attention.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="ExileCore2">
