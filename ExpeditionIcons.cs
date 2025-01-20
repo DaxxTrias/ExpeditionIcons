@@ -168,7 +168,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             RelicPath => ExpeditionEntityType.Relic,
             MarkerPath => ExpeditionEntityType.Marker,
             _ when p.StartsWith("Metadata/Terrain/Leagues/Expedition/Tiles/ExpeditionChamber") => ExpeditionEntityType.Cave,
-            _ when p.StartsWith("Metadata/Terrain/Leagues/Expedition/Tiles/ExpeditionBossDispenser") => ExpeditionEntityType.Boss,
+            _ when p.StartsWith("Metadata/Terrain/Gallows/Leagues/Expedition/Objects/ExpeditionOlrothEntrance") => ExpeditionEntityType.Boss,
             _ => ExpeditionEntityType.None,
         });
     }
