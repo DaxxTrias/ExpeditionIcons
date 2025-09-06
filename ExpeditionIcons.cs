@@ -68,9 +68,25 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     private (Vector2 Pos, float Rotation)? DetonatorPos => _detonatorPos ??= RealDetonatorPos;
 
-    private (Vector2, float)? RealDetonatorPos => DetonatorEntity is { } e
-        ? (e.GridPos, e.GetComponent<Positioned>().Rotation)
-        : null;
+    private (Vector2, float)? RealDetonatorPos
+    {
+        get
+        {
+            var e = DetonatorEntity;
+            if (e == null)
+            {
+                return null;
+            }
+
+            var posComp = e.GetComponent<Positioned>();
+            if (posComp == null)
+            {
+                return null;
+            }
+
+            return (e.GridPos, posComp.Rotation);
+        }
+    }
 
     private Entity DetonatorEntity =>
         GameController.EntityListWrapper.ValidEntitiesByType[EntityType.IngameIcon]
