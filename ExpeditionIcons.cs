@@ -74,7 +74,8 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     private Entity DetonatorEntity =>
         GameController.EntityListWrapper.ValidEntitiesByType[EntityType.IngameIcon]
-            .FirstOrDefault(x => x.Path == "Metadata/MiscellaneousObjects/Expedition/ExpeditionDetonator");
+            .FirstOrDefault(x => x.Path == "Metadata/MiscellaneousObjects/Expedition/ExpeditionDetonator" ||
+                                 x.Path == "Metadata/MiscellaneousObjects/Expedition/ExpeditionDetonatorTreasureIsland");
 
     private int PlacedExplosiveCount => ExpeditionInfo.PlacedExplosiveCount;
     private Vector2i[] PlacedExplosives => ExpeditionInfo.PlacedExplosiveGridPositions;
