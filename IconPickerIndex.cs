@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
 namespace ExpeditionIcons;
@@ -41,4 +41,5 @@ public enum IconPickerIndex
     DeliriumChest,
     UniquesChest,
     OtherChests,
+    RuneEncounter,
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -253,6 +253,7 @@ public class PathPlanner
                 RunicMonster => environment.IsLogbook ? _settings.RunicMonsterLogbookWeight : _settings.RunicMonsterWeight,
                 Chest { Type: var type } => _settings.ChestSettingsMap.GetValueOrDefault(type, new ChestSettings()).Weight,
                 NormalMonster => _settings.NormalMonsterWeight,
+                RuneEncounter => _settings.RuneEncounterWeight,
             };
         }
 

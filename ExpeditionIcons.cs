@@ -29,6 +29,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     private const string MarkerPath = "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker";
     private const string ExplosivePath = "Metadata/MiscellaneousObjects/Expedition/ExpeditionExplosive";
     private const string RelicPath = "Metadata/MiscellaneousObjects/Expedition/ExpeditionRelic";
+    private const string RuneEncounterPath = "Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController";
 
     private const string TextureName = "Icons.png";
     private const double CameraAngle = 38.7 * Math.PI / 180;
@@ -236,6 +237,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         {
             RelicPath => ExpeditionEntityType.Relic,
             MarkerPath => ExpeditionEntityType.Marker,
+            RuneEncounterPath => ExpeditionEntityType.RuneEncounter,
             _ when p.StartsWith("Metadata/Terrain/Leagues/Expedition/Tiles/ExpeditionChamber") => ExpeditionEntityType.Cave,
             _ when p.StartsWith("Metadata/Terrain/Gallows/Leagues/Expedition/Objects/ExpeditionOlrothEntrance") => ExpeditionEntityType.Boss,
             _ => ExpeditionEntityType.None,
@@ -337,8 +339,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         _explosiveRange = ExplosiveBaseRange * (100 + (GameController.IngameState.Data.MapStats?.GetValueOrDefault(GameStat.MapExpeditionMaximumPlacementDistancePct) ?? 0)) / 100 *
                           GridToWorldMultiplier;
 
-        foreach (var entity in new[] { EntityType.IngameIcon, EntityType.Terrain }
-                     .SelectMany(x => GameController.EntityListWrapper.ValidEntitiesByType[x]))
+        foreach (var entity in GetTrackedExpeditionEntities())
         {
             if (GetEntityType(entity.Path) != ExpeditionEntityType.None)
             {
@@ -350,6 +351,27 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         }
 
         return;
+    }
+
+    private IEnumerable<Entity> GetTrackedExpeditionEntities()
+    {
+        foreach (var entity in GameController.EntityListWrapper.ValidEntitiesByType[EntityType.IngameIcon])
+        {
+            yield return entity;
+        }
+
+        foreach (var entity in GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Terrain])
+        {
+            yield return entity;
+        }
+
+        foreach (var entity in GameController.EntityListWrapper.ValidEntitiesByType[EntityType.Monster])
+        {
+            if (entity.Path == RuneEncounterPath)
+            {
+                yield return entity;
+            }
+        }
     }
 
     private (Vector2 Min, Vector2 Max)? GetExclusionRect()
@@ -463,6 +485,11 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
                     break;
                 }
+                case ExpeditionEntityType.RuneEncounter:
+                {
+                    loot.Add((e.GridPos, new RuneEncounter()));
+                    break;
+                }
             }
         }
 
@@ -487,6 +514,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             [ExpeditionEntityType.Relic] = 0,
             [ExpeditionEntityType.Cave] = 0,
             [ExpeditionEntityType.Boss] = 0,
+            [ExpeditionEntityType.RuneEncounter] = 0,
         };
         var markerAnimatedMetadata = 0;
         var markerMetadataErrors = 0;
@@ -567,6 +595,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             typeCounts[ExpeditionEntityType.Relic],
             typeCounts[ExpeditionEntityType.Cave],
             typeCounts[ExpeditionEntityType.Boss],
+            typeCounts[ExpeditionEntityType.RuneEncounter],
             typeCounts[ExpeditionEntityType.None],
             markerAnimatedMetadata,
             markerMetadataErrors,
@@ -642,7 +671,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             $"detonator: grid={FormatVector(snapshot.DetonatorGridPosition)}",
             $"expedition info: totalExplosives={FormatNullable(snapshot.TotalExplosives)}, placedExplosives={FormatNullable(snapshot.PlacedExplosives)}, error={snapshot.ExpeditionInfoError ?? "<none>"}",
             $"pathfinding: area={FormatVector(snapshot.AreaDimensions)}, rows={snapshot.PathfindingRows}, columns={snapshot.PathfindingMinColumns}-{snapshot.PathfindingMaxColumns}, coversArea={snapshot.PathfindingCoversArea}",
-            $"cached entities: total={snapshot.CachedEntities}, markers={snapshot.CachedMarkers}, relics={snapshot.CachedRelics}, caves={snapshot.CachedCaves}, bosses={snapshot.CachedBosses}, other={snapshot.CachedUnknown}",
+            $"cached entities: total={snapshot.CachedEntities}, markers={snapshot.CachedMarkers}, relics={snapshot.CachedRelics}, caves={snapshot.CachedCaves}, bosses={snapshot.CachedBosses}, runeEncounters={snapshot.CachedRuneEncounters}, other={snapshot.CachedUnknown}",
             $"marker data: animatedMetadata={snapshot.MarkersWithAnimatedMetadata}, metadataErrors={snapshot.MarkerMetadataErrors}",
             $"relic data: relicMods={snapshot.RelicsWithMods}, visibleRelicMods={snapshot.VisibleRelicsWithMods}",
             $"explosives: range={snapshot.ExplosionRange:F1}, radius={snapshot.ExplosionRadius:F1}",
@@ -812,6 +841,22 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
                             offset += Vector2.UnitX;
                         }
+                    }
+
+                    break;
+                }
+                case ExpeditionEntityType.RuneEncounter:
+                {
+                    var settings = Settings.IconMapping.GetValueOrDefault(IconPickerIndex.RuneEncounter, new IconDisplaySettings());
+                    var icon = settings.Icon ?? ExpeditionIconsSettings.DefaultRuneEncounterIcon;
+                    if (settings.ShowOnMap)
+                    {
+                        DrawIconOnMap(e, icon, settings.Tint, Vector2.Zero);
+                    }
+
+                    if (settings.ShowInWorld)
+                    {
+                        DrawIconInWorld(e, icon, settings.Tint, Vector2.Zero);
                     }
 
                     break;
@@ -1168,6 +1213,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         int CachedRelics,
         int CachedCaves,
         int CachedBosses,
+        int CachedRuneEncounters,
         int CachedUnknown,
         int MarkersWithAnimatedMetadata,
         int MarkerMetadataErrors,
@@ -1191,6 +1237,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         Marker,
         Cave,
         Boss,
+        RuneEncounter,
     }
 
     private record EntityCacheItem(
@@ -1222,6 +1269,16 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     public override void EntityAdded(Entity entity)
     {
+        if (entity.Type == EntityType.Monster)
+        {
+            if (entity.Path == RuneEncounterPath)
+            {
+                _cachedEntities[entity.Id] = BuildCacheItem(entity);
+            }
+
+            return;
+        }
+
         if (entity.Type is EntityType.IngameIcon or EntityType.Terrain && GetEntityType(entity.Path) != ExpeditionEntityType.None)
         {
             _cachedEntities[entity.Id] = BuildCacheItem(entity);

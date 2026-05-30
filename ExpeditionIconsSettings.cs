@@ -124,6 +124,7 @@ public class ExpeditionIconsSettings : ISettings
 {
     public const MapIconsIndex DefaultBadModsIcon = MapIconsIndex.RedFlag;
     public const MapIconsIndex DefaultEliteMonsterIcon = MapIconsIndex.HeistSpottedMiniBoss;
+    public const MapIconsIndex DefaultRuneEncounterIcon = MapIconsIndex.HeistSpottedMiniBoss;
     public const MapIconsIndex DefaultChestIcon = MapIconsIndex.MissionTarget;
 
     public int IconPickerSize = 20;
@@ -161,6 +162,10 @@ public class ExpeditionIconsSettings : ISettings
         {
             DrawDelegate = () => { IconPickerDrawer.Instance.PickIcon(IconPickerIndex.EliteMonstersIndicator, DefaultEliteMonsterIcon); }
         };
+        RuneEncounterSettings = new CustomNode
+        {
+            DrawDelegate = () => { IconPickerDrawer.Instance.PickIcon(IconPickerIndex.RuneEncounter, DefaultRuneEncounterIcon); }
+        };
     }
 
     public ToggleNode Enable { get; set; } = new ToggleNode(false);
@@ -194,6 +199,14 @@ public class ExpeditionIconsSettings : ISettings
     [Menu(null, parentIndex = 103)]
     [JsonIgnore]
     public CustomNode ChestSettings { get; set; }
+
+    [Menu("Rune encounter", index = 104, CollapsedByDefault = true)]
+    [JsonIgnore]
+    public EmptyNode RuneEncounterSettingsHeader { get; set; } = null!;
+
+    [Menu(null, parentIndex = 104)]
+    [JsonIgnore]
+    public CustomNode RuneEncounterSettings { get; set; }
 
     public ExpeditionExplosiveSettings ExplosivesSettings { get; set; } = new ExpeditionExplosiveSettings();
     public PlannerSettings PlannerSettings { get; set; } = new PlannerSettings();
@@ -344,6 +357,7 @@ public class PlannerSettings
     public RangeNode<int> ValidatedIntermediatePoints { get; set; } = new RangeNode<int>(1, 0, 5);
     public RangeNode<float> RunicMonsterWeight { get; set; } = new RangeNode<float>(3, 0, 5);
     public RangeNode<float> RunicMonsterLogbookWeight { get; set; } = new RangeNode<float>(3, 0, 5);
+    public RangeNode<float> RuneEncounterWeight { get; set; } = new RangeNode<float>(4, 0, 10);
     public RangeNode<float> NormalMonsterWeight { get; set; } = new RangeNode<float>(0.2f, 0, 5);
 
     [Menu("Chest weight", 888, CollapsedByDefault = true)]
