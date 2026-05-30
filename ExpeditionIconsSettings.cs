@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -302,6 +302,11 @@ public class PlannerSettings
     public HotkeyNode StopSearchHotkey { get; set; } = new HotkeyNode(Keys.F13);
     public HotkeyNode ClearSearchHotkey { get; set; } = new HotkeyNode(Keys.F13);
     public HotkeyNode ConfirmEditorPlacementHotkey { get; set; } = new HotkeyNode(Keys.Enter);
+
+    public ToggleNode EnablePlannerDebugLogging { get; set; } = new ToggleNode(false);
+
+    [JsonIgnore]
+    public ButtonNode DumpPlannerDebug { get; set; } = new ButtonNode();
 
     [JsonIgnore]
     [ConditionalDisplay(nameof(IsSearchRunning), false)]

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
@@ -50,19 +50,19 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     private bool _largeMapOpen;
     private Vector2 _playerGridPos;
     private float _playerZ;
-    private List<Vector2> _explosives2DPositions;
+    private List<Vector2> _explosives2DPositions = [];
     private float _explosiveRadius;
     private float _explosiveRange;
-    private PathPlannerRunner _plannerRunner;
+    private PathPlannerRunner? _plannerRunner;
     private (Vector2, float)? _detonatorPos;
     private bool _zoneCleared;
-    private int[][] _pathfindingData;
+    private int[][]? _pathfindingData;
     private Vector2i _areaDimensions;
     private List<float> _scoreHistory = [];
-    private List<Vector2> _editedPath;
+    private List<Vector2>? _editedPath;
     private int? _editedIndex = null;
-    private PathPlanner.DetailedLootScore _editedPathEval;
-    private PathPlanner.DetailedLootScore EditedOrNativeScore => _editedPathEval ?? _plannerRunner?.CurrentBestPath;
+    private PathPlanner.DetailedLootScore? _editedPathEval;
+    private PathPlanner.DetailedLootScore? EditedOrNativeScore => _editedPathEval ?? _plannerRunner?.CurrentBestPath;
 
     private Camera Camera => GameController.Game.IngameState.Camera;
 
@@ -115,6 +115,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         Settings.PlannerSettings.StartSearch.OnPressed += StartSearch;
         Settings.PlannerSettings.StopSearch.OnPressed += StopSearch;
         Settings.PlannerSettings.ClearSearch.OnPressed += ClearSearch;
+        Settings.PlannerSettings.DumpPlannerDebug.OnPressed += DumpPlannerDebug;
         RegisterHotkey(Settings.PlannerSettings.StartSearchHotkey);
         RegisterHotkey(Settings.PlannerSettings.StopSearchHotkey);
         RegisterHotkey(Settings.PlannerSettings.ClearSearchHotkey);
@@ -144,10 +145,61 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     {
         _scoreHistory = [];
         _plannerRunner?.Stop();
+        _plannerRunner = null;
+        var debugSnapshot = BuildPlannerDebugSnapshot();
+        if (Settings.PlannerSettings.EnablePlannerDebugLogging)
+        {
+            LogPlannerDebugSnapshot("start requested", debugSnapshot);
+        }
+
+        if (GetPlannerStartFailure(debugSnapshot) is { } failure)
+        {
+            DebugWindow.LogError($"ExpeditionIcons planner cannot start: {failure}{Environment.NewLine}{FormatPlannerDebugSnapshot(debugSnapshot)}");
+            Settings.PlannerSettings.SearchState = SearchState.Empty;
+            return;
+        }
+
+        ExpeditionEnvironment environment;
+        try
+        {
+            environment = PlannerEnvironment;
+        }
+        catch (Exception ex)
+        {
+            DebugWindow.LogError($"ExpeditionIcons planner environment build failed: {ex}{Environment.NewLine}{FormatPlannerDebugSnapshot(debugSnapshot)}");
+            Settings.PlannerSettings.SearchState = SearchState.Empty;
+            return;
+        }
+
+        if (Settings.PlannerSettings.EnablePlannerDebugLogging || environment.Loot.Count == 0 || environment.Relics.Count == 0)
+        {
+            LogPlannerEnvironment("start environment", environment);
+        }
+
         var plannerRunner = new PathPlannerRunner();
-        plannerRunner.Start(Settings.PlannerSettings, PlannerEnvironment, GameController.SoundController);
+        plannerRunner.Start(Settings.PlannerSettings, environment, GameController.SoundController);
         _plannerRunner = plannerRunner;
         Settings.PlannerSettings.SearchState = SearchState.Searching;
+    }
+
+    private void DumpPlannerDebug()
+    {
+        var debugSnapshot = BuildPlannerDebugSnapshot();
+        LogPlannerDebugSnapshot("manual dump", debugSnapshot);
+        if (GetPlannerStartFailure(debugSnapshot) is { } failure)
+        {
+            DebugWindow.LogError($"ExpeditionIcons planner preflight failure: {failure}");
+            return;
+        }
+
+        try
+        {
+            LogPlannerEnvironment("manual environment", PlannerEnvironment);
+        }
+        catch (Exception ex)
+        {
+            DebugWindow.LogError($"ExpeditionIcons planner environment dump failed: {ex}");
+        }
     }
 
     private void ClearSearch()
@@ -426,12 +478,190 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
             (GameController.IngameState.Data.MapStats?.GetValueOrDefault(GameStat.MapMinimapMainAreaRevealed) ?? 0) != 0);
     }
 
+    private PlannerDebugSnapshot BuildPlannerDebugSnapshot()
+    {
+        var typeCounts = new Dictionary<ExpeditionEntityType, int>
+        {
+            [ExpeditionEntityType.None] = 0,
+            [ExpeditionEntityType.Marker] = 0,
+            [ExpeditionEntityType.Relic] = 0,
+            [ExpeditionEntityType.Cave] = 0,
+            [ExpeditionEntityType.Boss] = 0,
+        };
+        var markerAnimatedMetadata = 0;
+        var markerMetadataErrors = 0;
+        var relicsWithMods = 0;
+        var visibleRelicsWithMods = 0;
+
+        foreach (var entity in _cachedEntities.Values)
+        {
+            var type = GetEntityType(entity.Path);
+            typeCounts[type] = typeCounts.GetValueOrDefault(type) + 1;
+
+            switch (type)
+            {
+                case ExpeditionEntityType.Marker:
+                    try
+                    {
+                        if (entity.BaseAnimatedEntityMetadata != null)
+                        {
+                            markerAnimatedMetadata++;
+                        }
+                    }
+                    catch
+                    {
+                        markerMetadataErrors++;
+                    }
+
+                    break;
+                case ExpeditionEntityType.Relic:
+                    if (entity.Mods is { Count: > 0 } mods && mods.Any(x => x.Contains("ExpeditionRelic")))
+                    {
+                        relicsWithMods++;
+                        if (entity.MinimapIconHide == false)
+                        {
+                            visibleRelicsWithMods++;
+                        }
+                    }
+
+                    break;
+            }
+        }
+
+        var pathfindingRows = 0;
+        var pathfindingMinColumns = 0;
+        var pathfindingMaxColumns = 0;
+        if (_pathfindingData is { Length: > 0 } pathfindingData)
+        {
+            pathfindingRows = pathfindingData.Length;
+            var rowLengths = pathfindingData.Select(x => x?.Length ?? 0).ToList();
+            pathfindingMinColumns = rowLengths.Min();
+            pathfindingMaxColumns = rowLengths.Max();
+        }
+
+        int? totalExplosives = null;
+        int? placedExplosives = null;
+        string? expeditionInfoError = null;
+        try
+        {
+            var expeditionInfo = ExpeditionInfo;
+            totalExplosives = expeditionInfo.TotalExplosiveCount;
+            placedExplosives = expeditionInfo.PlacedExplosiveCount;
+        }
+        catch (Exception ex)
+        {
+            expeditionInfoError = $"{ex.GetType().Name}: {ex.Message}";
+        }
+
+        var detonatorPos = DetonatorPos;
+        var areaDimensionsValid = _areaDimensions.X > 0 && _areaDimensions.Y > 0;
+        var pathfindingCoversArea =
+            areaDimensionsValid &&
+            pathfindingRows >= _areaDimensions.Y &&
+            pathfindingMinColumns >= _areaDimensions.X;
+
+        return new PlannerDebugSnapshot(
+            detonatorPos?.Pos,
+            _cachedEntities.Count,
+            typeCounts[ExpeditionEntityType.Marker],
+            typeCounts[ExpeditionEntityType.Relic],
+            typeCounts[ExpeditionEntityType.Cave],
+            typeCounts[ExpeditionEntityType.Boss],
+            typeCounts[ExpeditionEntityType.None],
+            markerAnimatedMetadata,
+            markerMetadataErrors,
+            relicsWithMods,
+            visibleRelicsWithMods,
+            _areaDimensions,
+            pathfindingRows,
+            pathfindingMinColumns,
+            pathfindingMaxColumns,
+            pathfindingCoversArea,
+            totalExplosives,
+            placedExplosives,
+            expeditionInfoError,
+            _explosiveRange / GridToWorldMultiplier,
+            _explosiveRadius / GridToWorldMultiplier);
+    }
+
+    private static string? GetPlannerStartFailure(PlannerDebugSnapshot snapshot)
+    {
+        if (snapshot.DetonatorGridPosition == null)
+        {
+            return "detonator position is unknown";
+        }
+
+        if (snapshot.ExpeditionInfoError != null)
+        {
+            return $"ExpeditionDetonatorElement.Info is unavailable ({snapshot.ExpeditionInfoError})";
+        }
+
+        if (snapshot.TotalExplosives is null or <= 0)
+        {
+            return $"no explosives are available from ExpeditionInfo.TotalExplosiveCount ({FormatNullable(snapshot.TotalExplosives)})";
+        }
+
+        if (snapshot.AreaDimensions.X <= 0 || snapshot.AreaDimensions.Y <= 0)
+        {
+            return $"area dimensions are invalid ({FormatVector(snapshot.AreaDimensions)})";
+        }
+
+        if (snapshot.PathfindingRows <= 0 || snapshot.PathfindingMinColumns <= 0)
+        {
+            return "RawPathfindingData is empty or unavailable";
+        }
+
+        if (!snapshot.PathfindingCoversArea)
+        {
+            return $"RawPathfindingData does not cover AreaDimensions ({snapshot.PathfindingRows} rows, columns {snapshot.PathfindingMinColumns}-{snapshot.PathfindingMaxColumns}, area {FormatVector(snapshot.AreaDimensions)})";
+        }
+
+        if (snapshot.ExplosionRange <= 0 || snapshot.ExplosionRadius <= 0)
+        {
+            return $"explosion range/radius are invalid (range={snapshot.ExplosionRange:F1}, radius={snapshot.ExplosionRadius:F1})";
+        }
+
+        return null;
+    }
+
+    private static void LogPlannerDebugSnapshot(string context, PlannerDebugSnapshot snapshot)
+    {
+        DebugWindow.LogMsg($"ExpeditionIcons planner debug ({context}):{Environment.NewLine}{FormatPlannerDebugSnapshot(snapshot)}");
+    }
+
+    private static void LogPlannerEnvironment(string context, ExpeditionEnvironment environment)
+    {
+        DebugWindow.LogMsg(
+            $"ExpeditionIcons planner environment ({context}): maxExplosions={environment.MaxExplosions}, loot={environment.Loot.Count}, relics={environment.Relics.Count}, range={environment.ExplosionRange:F1}, radius={environment.ExplosionRadius:F1}, start={FormatVector(environment.StartingPoint)}, exclusion={FormatVector(environment.ExclusionArea.Min)}..{FormatVector(environment.ExclusionArea.Max)}, isLogbook={environment.IsLogbook}");
+    }
+
+    private static string FormatPlannerDebugSnapshot(PlannerDebugSnapshot snapshot)
+    {
+        return string.Join(Environment.NewLine, new[]
+        {
+            $"detonator: grid={FormatVector(snapshot.DetonatorGridPosition)}",
+            $"expedition info: totalExplosives={FormatNullable(snapshot.TotalExplosives)}, placedExplosives={FormatNullable(snapshot.PlacedExplosives)}, error={snapshot.ExpeditionInfoError ?? "<none>"}",
+            $"pathfinding: area={FormatVector(snapshot.AreaDimensions)}, rows={snapshot.PathfindingRows}, columns={snapshot.PathfindingMinColumns}-{snapshot.PathfindingMaxColumns}, coversArea={snapshot.PathfindingCoversArea}",
+            $"cached entities: total={snapshot.CachedEntities}, markers={snapshot.CachedMarkers}, relics={snapshot.CachedRelics}, caves={snapshot.CachedCaves}, bosses={snapshot.CachedBosses}, other={snapshot.CachedUnknown}",
+            $"marker data: animatedMetadata={snapshot.MarkersWithAnimatedMetadata}, metadataErrors={snapshot.MarkerMetadataErrors}",
+            $"relic data: relicMods={snapshot.RelicsWithMods}, visibleRelicMods={snapshot.VisibleRelicsWithMods}",
+            $"explosives: range={snapshot.ExplosionRange:F1}, radius={snapshot.ExplosionRadius:F1}",
+        });
+    }
+
+    private static string FormatNullable(int? value) => value?.ToString() ?? "<unavailable>";
+
+    private static string FormatVector(Vector2? value) => value is { } vector ? $"{vector.X:F1},{vector.Y:F1}" : "<unknown>";
+
+    private static string FormatVector(Vector2i value) => $"{value.X},{value.Y}";
+
     private bool IsValidPlacement(Vector2 x)
     {
-        return x.X >= 0 && x.Y >= 0 &&
+        return _pathfindingData is { } pathfindingData &&
+               x.X >= 0 && x.Y >= 0 &&
                x.X < _areaDimensions.X &&
                x.Y < _areaDimensions.Y &&
-               _pathfindingData[(int)x.Y][(int)x.X] > 3;
+               pathfindingData[(int)x.Y][(int)x.X] > 3;
     }
 
     public override void Render()
@@ -930,6 +1160,29 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
         deltaZ /= GridToWorldMultiplier; //z is normally "world" units, translate to grid
         return (float)_mapScale * new Vector2((delta.X - delta.Y) * CameraAngleCos, (deltaZ - (delta.X + delta.Y)) * CameraAngleSin);
     }
+
+    private sealed record PlannerDebugSnapshot(
+        Vector2? DetonatorGridPosition,
+        int CachedEntities,
+        int CachedMarkers,
+        int CachedRelics,
+        int CachedCaves,
+        int CachedBosses,
+        int CachedUnknown,
+        int MarkersWithAnimatedMetadata,
+        int MarkerMetadataErrors,
+        int RelicsWithMods,
+        int VisibleRelicsWithMods,
+        Vector2i AreaDimensions,
+        int PathfindingRows,
+        int PathfindingMinColumns,
+        int PathfindingMaxColumns,
+        bool PathfindingCoversArea,
+        int? TotalExplosives,
+        int? PlacedExplosives,
+        string? ExpeditionInfoError,
+        float ExplosionRange,
+        float ExplosionRadius);
 
     private enum ExpeditionEntityType
     {

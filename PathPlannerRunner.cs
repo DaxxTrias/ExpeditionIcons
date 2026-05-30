@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -16,16 +16,17 @@ public class PathPlannerRunner
 {
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
     public bool IsRunning => _task is { IsCompleted: false };
-    private PathPlanner _pathPlanner;
-    private ExpeditionEnvironment _environment;
-    private BestValue[] BestValues;
+    public Exception? LastError { get; private set; }
+    private PathPlanner? _pathPlanner;
+    private ExpeditionEnvironment? _environment;
+    private BestValue?[]? BestValues;
     private readonly ConditionalWeakTable<List<Vector2>, PathPlanner.DetailedLootScore> _lootCache = [];
 
-    public PathPlanner.DetailedLootScore CurrentBestPath
+    public PathPlanner.DetailedLootScore? CurrentBestPath
     {
         get
         {
-            if (BestValues?.Where(x => x != null).MaxBy(x => x.Score)?.Path is not { } bestPath)
+            if (BestValues?.OfType<BestValue>().MaxBy(x => x.Score)?.Path is not { } bestPath)
             {
                 return null;
             }
@@ -44,7 +45,7 @@ public class PathPlannerRunner
 
     public double CurrentBestScore => BestValues?.Max(x => x?.Score ?? 0) ?? 0;
 
-    private Task _task;
+    private Task? _task;
 
     public void Start(PlannerSettings settings, ExpeditionEnvironment environment, SoundController soundController)
     {
@@ -53,44 +54,56 @@ public class PathPlannerRunner
 
     private async Task Run(PlannerSettings settings, ExpeditionEnvironment environment, SoundController soundController)
     {
-        _environment = environment;
-        _pathPlanner = new PathPlanner(settings);
-        _pathPlanner.Init(environment);
-        var threadCount = Math.Max(settings.SearchThreads.Value, 1);
-        BestValues = new BestValue[threadCount];
-        var tasks = new List<Task>();
-        for (int i = 0; i < threadCount; i++)
-        {
-            var ii = i;
-            tasks.Add(Task.Run(() =>
-            {
-                try
-                {
-                    var p = new PathPlanner(settings);
-                    var sw = Stopwatch.StartNew();
-                    var iterationSw = Stopwatch.StartNew();
-                    p.Init(environment);
-                    foreach (var bestPath in p.GetBestPathSeries(environment))
-                    {
-                        BestValues[ii] = new BestValue(bestPath.Points, bestPath.Score, (BestValues[ii]?.Iteration ?? 0) + 1, iterationSw.Elapsed.TotalMilliseconds);
-                        iterationSw.Restart();
-                        if (sw.Elapsed.TotalSeconds >= settings.MaximumGenerationTimeSeconds.Value ||
-                            _cts.IsCancellationRequested)
-                        {
-                            return;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    DebugWindow.LogError($"Expedition search thread failed: {ex}");
-                }
-            }));
-        }
-
         try
         {
+            _environment = environment;
+            _pathPlanner = new PathPlanner(settings);
+            _pathPlanner.Init(environment);
+            var threadCount = Math.Max(settings.SearchThreads.Value, 1);
+            BestValues = new BestValue[threadCount];
+            var tasks = new List<Task>();
+            if (settings.EnablePlannerDebugLogging)
+            {
+                DebugWindow.LogMsg(
+                    $"ExpeditionIcons PathPlanner starting: threads={threadCount}, maxExplosions={environment.MaxExplosions}, loot={environment.Loot.Count}, relics={environment.Relics.Count}, range={environment.ExplosionRange:F1}, radius={environment.ExplosionRadius:F1}");
+            }
+
+            for (int i = 0; i < threadCount; i++)
+            {
+                var ii = i;
+                tasks.Add(Task.Run(() =>
+                {
+                    try
+                    {
+                        var p = new PathPlanner(settings);
+                        var sw = Stopwatch.StartNew();
+                        var iterationSw = Stopwatch.StartNew();
+                        p.Init(environment);
+                        foreach (var bestPath in p.GetBestPathSeries(environment))
+                        {
+                            BestValues[ii] = new BestValue(bestPath.Points, bestPath.Score, (BestValues[ii]?.Iteration ?? 0) + 1, iterationSw.Elapsed.TotalMilliseconds);
+                            iterationSw.Restart();
+                            if (sw.Elapsed.TotalSeconds >= settings.MaximumGenerationTimeSeconds.Value ||
+                                _cts.IsCancellationRequested)
+                            {
+                                return;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LastError = ex;
+                        DebugWindow.LogError($"Expedition search thread failed: {ex}");
+                    }
+                }));
+            }
+
             await Task.WhenAll(tasks);
+        }
+        catch (Exception ex)
+        {
+            LastError = ex;
+            DebugWindow.LogError($"ExpeditionIcons PathPlanner failed before completion: {ex}");
         }
         finally
         {
