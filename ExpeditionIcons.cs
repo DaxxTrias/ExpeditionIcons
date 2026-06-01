@@ -50,7 +50,7 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     private bool _largeMapOpen;
     private Vector2 _playerGridPos;
     private float _playerZ;
-    private List<Vector2> _explosives2DPositions;
+    private List<Vector2> _explosives2DPositions = [];
     private float _explosiveRadius;
     private float _explosiveRange;
     private PathPlannerRunner _plannerRunner;
@@ -68,9 +68,20 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     private (Vector2 Pos, float Rotation)? DetonatorPos => _detonatorPos ??= RealDetonatorPos;
 
-    private (Vector2, float)? RealDetonatorPos => DetonatorEntity is { } e
-        ? (e.GridPos, e.GetComponent<Positioned>().Rotation)
-        : null;
+    private (Vector2, float)? RealDetonatorPos
+    {
+        get
+        {
+            var entity = DetonatorEntity;
+            if (entity == null)
+            {
+                return null;
+            }
+
+            var positioned = entity.GetComponent<Positioned>();
+            return positioned == null ? null : (entity.GridPos, positioned.Rotation);
+        }
+    }
 
     private Entity DetonatorEntity =>
         GameController.EntityListWrapper.ValidEntitiesByType[EntityType.IngameIcon]
@@ -128,8 +139,22 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     {
         _scoreHistory = [];
         _plannerRunner?.Stop();
+        _plannerRunner = null;
+
+        ExpeditionEnvironment environment;
+        try
+        {
+            environment = PlannerEnvironment;
+        }
+        catch (Exception ex)
+        {
+            DebugWindow.LogError($"ExpeditionIcons planner cannot start: {ex}");
+            Settings.PlannerSettings.SearchState = SearchState.Empty;
+            return;
+        }
+
         var plannerRunner = new PathPlannerRunner();
-        plannerRunner.Start(Settings.PlannerSettings, PlannerEnvironment, GameController.SoundController);
+        plannerRunner.Start(Settings.PlannerSettings, environment, GameController.SoundController);
         _plannerRunner = plannerRunner;
         Settings.PlannerSettings.SearchState = SearchState.Searching;
     }
@@ -412,10 +437,26 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     private bool IsValidPlacement(Vector2 x)
     {
-        return x.X >= 0 && x.Y >= 0 &&
-               x.X < _areaDimensions.X &&
-               x.Y < _areaDimensions.Y &&
-               _pathfindingData[(int)x.Y][(int)x.X] > 3;
+        if (_pathfindingData == null ||
+            x.X < 0 ||
+            x.Y < 0 ||
+            x.X >= _areaDimensions.X ||
+            x.Y >= _areaDimensions.Y)
+        {
+            return false;
+        }
+
+        var rowIndex = (int)x.Y;
+        var columnIndex = (int)x.X;
+        if (rowIndex >= _pathfindingData.Length)
+        {
+            return false;
+        }
+
+        var row = _pathfindingData[rowIndex];
+        return row != null &&
+               columnIndex < row.Length &&
+               row[columnIndex] > 3;
     }
 
     public override void Render()
