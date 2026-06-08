@@ -73,23 +73,18 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
     {
         get
         {
-            var e = DetonatorEntity;
-            if (e == null)
+            var entity = DetonatorEntity;
+            if (entity == null)
             {
                 return null;
             }
 
-            var posComp = e.GetComponent<Positioned>();
-            if (posComp == null)
-            {
-                return null;
-            }
-
-            return (e.GridPos, posComp.Rotation);
+            var positioned = entity.GetComponent<Positioned>();
+            return positioned == null ? null : (entity.GridPos, positioned.Rotation);
         }
     }
 
-    private Entity DetonatorEntity =>
+    private Entity? DetonatorEntity =>
         GameController.EntityListWrapper.ValidEntitiesByType[EntityType.IngameIcon]
             .FirstOrDefault(x => x.Path == "Metadata/MiscellaneousObjects/Expedition/ExpeditionDetonator" ||
                                  x.Path == "Metadata/MiscellaneousObjects/Expedition/ExpeditionDetonatorTreasureIsland");
@@ -686,11 +681,26 @@ public class ExpeditionIcons : BaseSettingsPlugin<ExpeditionIconsSettings>
 
     private bool IsValidPlacement(Vector2 x)
     {
-        return _pathfindingData is { } pathfindingData &&
-               x.X >= 0 && x.Y >= 0 &&
-               x.X < _areaDimensions.X &&
-               x.Y < _areaDimensions.Y &&
-               pathfindingData[(int)x.Y][(int)x.X] > 3;
+        if (_pathfindingData == null ||
+            x.X < 0 ||
+            x.Y < 0 ||
+            x.X >= _areaDimensions.X ||
+            x.Y >= _areaDimensions.Y)
+        {
+            return false;
+        }
+
+        var rowIndex = (int)x.Y;
+        var columnIndex = (int)x.X;
+        if (rowIndex >= _pathfindingData.Length)
+        {
+            return false;
+        }
+
+        var row = _pathfindingData[rowIndex];
+        return row != null &&
+               columnIndex < row.Length &&
+               row[columnIndex] > 3;
     }
 
     public override void Render()
